@@ -1,0 +1,131 @@
+.admin-content-page {
+  min-height: 100vh;
+  padding: 30px;
+  background: #f6f8fc;
+  color: #263247;
+  font-family: Arial, sans-serif;
+}
+
+.admin-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #6257d9;
+  text-decoration: none;
+  margin-bottom: 25px;
+}
+
+.admin-content-header {
+  margin-bottom: 25px;
+}
+
+.admin-eyebrow {
+  color: #6257d9;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+.admin-content-header h1 {
+  margin: 10px 0;
+  font-size: 30px;
+}
+
+.admin-content-header > p:last-child {
+  color: #778197;
+  line-height: 1.6;
+}
+
+.admin-editor {
+  max-width: 850px;
+  padding: 28px;
+  background: white;
+  border: 1px solid #e7eaf2;
+  border-radius: 12px;
+}
+
+.admin-editor label {
+  display: block;
+  margin: 20px 0 9px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.admin-editor label:first-child {
+  margin-top: 0;
+}
+
+.admin-editor input,
+.admin-editor select,
+.admin-editor textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid #dfe3ed;
+  border-radius: 8px;
+  background: white;
+  color: #263247;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+
+.admin-editor textarea {
+  resize: vertical;
+  line-height: 1.7;
+}
+
+.admin-editor input:focus,
+.admin-editor select:focus,
+.admin-editor textarea:focus {
+  outline: none;
+  border-color: #6257d9;
+  box-shadow: 0 0 0 3px #eeecff;
+}
+
+.admin-editor-note {
+  margin: 15px 0;
+  color: #778197;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.admin-save-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #6257d9;
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.admin-save-button:hover {
+  background: #4c42b5;
+}
+
+.admin-save-message {
+  margin-top: 15px;
+  color: #24834c;
+  font-size: 14px;
+}
+
+@media (max-width: 600px) {
+  .admin-content-page {
+    padding: 18px;
+  }
+
+  .admin-editor {
+    padding: 20px;
+  }
+
+  .admin-content-header h1 {
+    font-size: 25px;
+  }
+}
+
