@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
-import Topics from "./pages/topics";
+import Topics from "./pages/Topics";
 import Quiz from "./pages/Quiz";
 import TopicDetail from "./pages/TopicDetails";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -20,8 +20,8 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/topics" element={<Topics />} />
-        <Route path="/quiz" element={<Quiz />} />
         <Route path="/topics/:topicId" element={<TopicDetail />} />
+        <Route path="/quiz" element={<Quiz />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin-content" element={<AdminContent />} />
       </Routes>

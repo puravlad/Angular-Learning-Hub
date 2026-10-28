@@ -126,12 +126,11 @@ function Topics() {
               <div className="topic-card-footer">
                 <span>{topic.lessons} lessons</span>
 
-                <Link
-                  to={`/topic/${topic.id}`}
-                  className="topic-link"
-                >
-                  Explore <ArrowRight size={16} />
-                </Link>
+               <Link
+                to={`/topics/${topic.id}`}
+                className="topic-link">
+                Explore <ArrowRight size={16} />
+</Link>
               </div>
             </div>
           );

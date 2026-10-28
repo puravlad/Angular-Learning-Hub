@@ -1,159 +1,357 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Save, ArrowLeft } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Save,
+  RotateCcw,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
+
+import {
+  getTopics,
+  saveTopics,
+} from "../utils/topicStorage";
+
 import "../styles/admin-content.css";
 
-const defaultTopics = [
-  {
-    id: 1,
-    title: "Expressions",
-    content:
-      "AngularJS expressions are used to display dynamic values in HTML.\n\nExample:\n<p>{{ 5 + 5 }}</p>\n\nOutput: 10",
-  },
-  {
-    id: 2,
-    title: "Directives",
-    content:
-      "Directives extend HTML with AngularJS functionality.\n\nExample:\n<p ng-repeat=\"item in items\">{{ item }}</p>\n\nCommon directives include ng-model, ng-repeat and ng-if.",
-  },
-  {
-    id: 3,
-    title: "Controllers",
-    content:
-      "Controllers manage application data and behavior.\n\nExample:\napp.controller('myCtrl', function($scope) {\n  $scope.name = 'Student';\n});",
-  },
-  {
-    id: 4,
-    title: "Modules",
-    content:
-      "An AngularJS module organizes application components.\n\nExample:\nvar app = angular.module('myApp', []);",
-  },
-  {
-    id: 5,
-    title: "Filters",
-    content:
-      "Filters format the values displayed to users.\n\nExample:\n{{ name | uppercase }}\n\nThis displays the name in uppercase.",
-  },
-  {
-    id: 6,
-    title: "Forms",
-    content:
-      "AngularJS supports form handling and validation.\n\nExample:\n<input type=\"text\" ng-model=\"username\" required>\n\nUse ng-model to connect input fields to application data.",
-  },
-];
-
-function getSavedTopics() {
-  try {
-    const saved = localStorage.getItem("angularHubTopics");
-    return saved ? JSON.parse(saved) : defaultTopics;
-  } catch {
-    return defaultTopics;
-  }
-}
-
 function AdminContent() {
-  const [topics, setTopics] = useState(getSavedTopics);
-  const [selectedId, setSelectedId] = useState(1);
+  const [topics, setTopics] = useState([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    explanation: "",
+    content: "",
+    example: "",
+    output: "",
+    points: "",
+  });
+
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("");
 
-  const selectedTopic = topics.find(
-    (topic) => topic.id === Number(selectedId)
-  );
+  // Load saved topics when the page opens.
+  useEffect(() => {
+    const loadedTopics = getTopics();
 
-  function handleChange(field, value) {
-    setTopics((previousTopics) =>
-      previousTopics.map((topic) =>
-        topic.id === Number(selectedId)
-          ? { ...topic, [field]: value }
-          : topic
-      )
+    setTopics(loadedTopics);
+
+    if (loadedTopics.length > 0) {
+      setSelectedId(String(loadedTopics[0].id));
+      setFormData(createFormData(loadedTopics[0]));
+    }
+  }, []);
+
+  // Convert a topic into editable form values.
+  function createFormData(topic) {
+    return {
+      title: topic.title ?? "",
+      description: topic.description ?? "",
+      explanation: topic.explanation ?? "",
+      content: topic.content ?? "",
+      example: topic.example ?? "",
+      output: topic.output ?? "",
+      points: Array.isArray(topic.points)
+        ? topic.points.join("\n")
+        : topic.points ?? "",
+    };
+  }
+
+  // Load the selected topic into the form.
+  function handleTopicChange(event) {
+    const id = event.target.value;
+    setSelectedId(id);
+    setMessage("");
+
+    const selectedTopic = topics.find(
+      (topic) => String(topic.id) === id
     );
+
+    if (selectedTopic) {
+      setFormData(createFormData(selectedTopic));
+    } else {
+      setFormData({
+        title: "",
+        description: "",
+        explanation: "",
+        content: "",
+        example: "",
+        output: "",
+        points: "",
+      });
+    }
+  }
+
+  // Update form values while typing.
+  function handleChange(event) {
+    const { name, value } = event.target;
+
+    setFormData((previousData) => ({
+      ...previousData,
+      [name]: value,
+    }));
 
     setMessage("");
   }
 
-  function saveContent(event) {
+  // Save updated material to localStorage.
+  function handleSave(event) {
     event.preventDefault();
 
-    if (!selectedTopic.title.trim() || !selectedTopic.content.trim()) {
-      setMessage("Please enter both a title and study material.");
+    if (!selectedId) {
+      setMessage("Please select a topic first.");
+      setMessageType("error");
       return;
     }
 
+    if (!formData.title.trim()) {
+      setMessage("Topic title cannot be empty.");
+      setMessageType("error");
+      return;
+    }
+
+    const updatedTopics = topics.map((topic) => {
+      if (String(topic.id) !== selectedId) {
+        return topic;
+      }
+
+      return {
+        ...topic,
+        title: formData.title.trim(),
+        description: formData.description,
+        explanation: formData.explanation,
+        content: formData.content,
+        example: formData.example,
+        output: formData.output,
+        points: formData.points
+          .split("\n")
+          .map((point) => point.trim())
+          .filter(Boolean),
+      };
+    });
+
     try {
-      localStorage.setItem("angularHubTopics", JSON.stringify(topics));
-      setMessage("Study material updated successfully!");
-    } catch {
-      setMessage("Unable to save. Please check your browser storage.");
+      // Save the complete updated topic list.
+      saveTopics(updatedTopics);
+
+      // Read it back to confirm it was stored.
+      const savedTopics = getTopics();
+
+      const savedTopic = savedTopics.find(
+        (topic) => String(topic.id) === selectedId
+      );
+
+      if (!savedTopic || savedTopic.title !== formData.title.trim()) {
+        throw new Error("Saved content could not be verified.");
+      }
+
+      setTopics(savedTopics);
+      setMessage("Learning material saved successfully!");
+      setMessageType("success");
+    } catch (error) {
+      console.error("Unable to save learning material:", error);
+      setMessage(
+        "Could not save changes. Check the browser console for details."
+      );
+      setMessageType("error");
+    }
+  }
+
+  // Restore the currently selected topic from saved storage.
+  function handleReset() {
+    const savedTopics = getTopics();
+
+    setTopics(savedTopics);
+
+    const selectedTopic = savedTopics.find(
+      (topic) => String(topic.id) === selectedId
+    );
+
+    if (selectedTopic) {
+      setFormData(createFormData(selectedTopic));
+      setMessage("Loaded the currently saved content.");
+      setMessageType("success");
     }
   }
 
   return (
     <div className="admin-content-page">
-      <Link to="/dashboard" className="admin-back-link">
-        <ArrowLeft size={18} /> Back to Dashboard
-      </Link>
-
       <div className="admin-content-header">
-        <p className="admin-eyebrow">ADMIN PANEL</p>
-        <h1>Update Learning Content</h1>
-        <p>Edit AngularJS topics and save the updated study material.</p>
+        <div className="admin-content-heading">
+          <div className="admin-content-icon">
+            <BookOpen size={26} />
+          </div>
+
+          <div>
+            <h1>Update Learning Content</h1>
+            <p>
+              Manage AngularJS topics and update the study materials
+              available to students.
+            </p>
+          </div>
+        </div>
+
+        <Link to="/admin-dashboard" className="admin-back-button">
+          <ArrowLeft size={17} />
+          Back to Dashboard
+        </Link>
       </div>
 
-      <form className="admin-editor" onSubmit={saveContent}>
-        <label htmlFor="topic">Select Topic</label>
+      <div className="admin-content-card">
+        <div className="admin-content-card-heading">
+          <h2>Study Material Editor</h2>
+          <p>Select a topic, edit its content, and save your changes.</p>
+        </div>
 
-        <select
-          id="topic"
-          value={selectedId}
-          onChange={(event) => {
-            setSelectedId(Number(event.target.value));
-            setMessage("");
-          }}
-        >
-          {topics.map((topic) => (
-            <option key={topic.id} value={topic.id}>
-              {topic.title}
-            </option>
-          ))}
-        </select>
+        {topics.length === 0 ? (
+          <div className="admin-content-empty">
+            <AlertCircle size={22} />
+            <p>No topics were found. Check your topicStorage.js file.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSave}>
+            <div className="admin-form-group">
+              <label htmlFor="topic-select">Select Topic</label>
 
-        <label htmlFor="title">Topic Title</label>
+              <select
+                id="topic-select"
+                value={selectedId}
+                onChange={handleTopicChange}
+                required
+              >
+                {topics.map((topic) => (
+                  <option key={topic.id} value={String(topic.id)}>
+                    {topic.title}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <input
-          id="title"
-          type="text"
-          value={selectedTopic.title}
-          onChange={(event) => handleChange("title", event.target.value)}
-          required
-        />
+            <div className="admin-form-group">
+              <label htmlFor="title">Topic Title</label>
 
-        <label htmlFor="content">Study Material</label>
+              <input
+                id="title"
+                name="title"
+                type="text"
+                value={formData.title}
+                onChange={handleChange}
+                placeholder="Enter topic title"
+                required
+              />
+            </div>
 
-        <textarea
-          id="content"
-          rows="12"
-          value={selectedTopic.content}
-          onChange={(event) => handleChange("content", event.target.value)}
-          placeholder="Enter study material here..."
-          required
-        />
+            <div className="admin-form-group">
+              <label htmlFor="description">Short Description</label>
 
-        <p className="admin-editor-note">
-          Your changes are saved in this browser. MongoDB integration can be
-          added later.
-        </p>
+              <textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                placeholder="Enter a short description"
+                rows={3}
+              />
+            </div>
 
-        <button type="submit" className="admin-save-button">
-          <Save size={18} /> Save Changes
-        </button>
+            <div className="admin-form-group">
+              <label htmlFor="explanation">Topic Explanation</label>
 
-        {message && (
-          <p className="admin-save-message" role="status">
-            {message}
-          </p>
+              <textarea
+                id="explanation"
+                name="explanation"
+                value={formData.explanation}
+                onChange={handleChange}
+                placeholder="Explain the topic in simple language"
+                rows={5}
+              />
+            </div>
+
+            <div className="admin-form-group">
+              <label htmlFor="content">Study Material</label>
+
+              <textarea
+                id="content"
+                name="content"
+                value={formData.content}
+                onChange={handleChange}
+                placeholder="Enter the complete study material"
+                rows={8}
+              />
+            </div>
+
+            <div className="admin-form-group">
+              <label htmlFor="example">Code Example</label>
+
+              <textarea
+                id="example"
+                name="example"
+                value={formData.example}
+                onChange={handleChange}
+                placeholder="Enter an AngularJS code example"
+                rows={7}
+              />
+            </div>
+
+            <div className="admin-form-group">
+              <label htmlFor="output">Expected Output</label>
+
+              <textarea
+                id="output"
+                name="output"
+                value={formData.output}
+                onChange={handleChange}
+                placeholder="Enter the expected output"
+                rows={3}
+              />
+            </div>
+
+            <div className="admin-form-group">
+              <label htmlFor="points">
+                Important Points (one point per line)
+              </label>
+
+              <textarea
+                id="points"
+                name="points"
+                value={formData.points}
+                onChange={handleChange}
+                placeholder="Enter one important point per line"
+                rows={5}
+              />
+            </div>
+
+            <div className="admin-content-actions">
+              <button type="submit" className="admin-save-button">
+                <Save size={17} />
+                Save Changes
+              </button>
+
+              <button
+                type="button"
+                className="admin-reset-button"
+                onClick={handleReset}
+              >
+                <RotateCcw size={17} />
+                Reset
+              </button>
+            </div>
+
+            {message && (
+              <div className={`admin-content-message ${messageType}`} role="status">
+                {messageType === "success" ? (
+                  <CheckCircle size={18} />
+                ) : (
+                  <AlertCircle size={18} />
+                )}
+                <span>{message}</span>
+              </div>
+            )}
+          </form>
         )}
-      </form>
+      </div>
     </div>
   );
 }
