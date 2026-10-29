@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -8,7 +8,6 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-
 import "../styles/quiz.css";
 
 const questions = [
@@ -79,6 +78,12 @@ function Quiz() {
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
 
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  const saveStarted = useRef(false);
+
   const question = questions[currentQuestion];
 
   const answeredCount = Object.keys(selectedAnswers).length;
@@ -92,8 +97,8 @@ function Quiz() {
   function selectAnswer(optionIndex) {
     if (submitted) return;
 
-    setSelectedAnswers((previous) => ({
-      ...previous,
+    setSelectedAnswers((previousAnswers) => ({
+      ...previousAnswers,
       [currentQuestion]: optionIndex,
     }));
   }
@@ -110,144 +115,222 @@ function Quiz() {
     }
   }
 
+  async function saveAttempt() {
+    if (saveStarted.current || saved) return;
+
+    saveStarted.current = true;
+    setSaving(true);
+    setSaveError("");
+
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error("Please log in again before saving your result.");
+      }
+
+      const answers = questions.map((item, index) => ({
+        questionId: String(index + 1),
+        questionText: item.question,
+        selectedAnswer:
+          item.options[selectedAnswers[index]],
+        correctAnswer: item.options[item.answer],
+        isCorrect: selectedAnswers[index] === item.answer,
+      }));
+
+      const response = await fetch(
+        "http://localhost:5000/api/quizzes/attempts",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            quizTitle: "AngularJS Quiz",
+            answers,
+            score,
+            totalQuestions: questions.length,
+            percentage,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Unable to save quiz result."
+        );
+      }
+
+      setSaved(true);
+    } catch (error) {
+      setSaveError(
+        error.message || "Unable to save quiz result."
+      );
+
+      // Allow the student to retry.
+      saveStarted.current = false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function submitQuiz() {
+    if (answeredCount !== questions.length || submitted) {
+      return;
+    }
+
+    setSubmitted(true);
+    saveAttempt();
+  }
+
   function restartQuiz() {
     setCurrentQuestion(0);
     setSelectedAnswers({});
     setSubmitted(false);
-  }
-
-  function submitQuiz() {
-    if (answeredCount === questions.length) {
-      setSubmitted(true);
-    }
+    setSaving(false);
+    setSaved(false);
+    setSaveError("");
+    saveStarted.current = false;
   }
 
   if (submitted) {
     return (
-      <div className="quiz-page">
-        <div className="quiz-container quiz-result-container">
-          <div className="quiz-result">
-            <div className="result-icon">
-              <Trophy size={42} />
-            </div>
-
-            <p className="quiz-label">QUIZ COMPLETED</p>
-            <h1>Your Result</h1>
-
-            <div className="score-circle">
-              <strong>
-                {score}/{questions.length}
-              </strong>
-              <span>Marks</span>
-            </div>
-
-            <p className="result-percentage">{percentage}% Score</p>
-
-            <h2>
-              {score >= 8
-                ? "Excellent Work!"
-                : score >= 5
-                  ? "Good Job!"
-                  : "Keep Practicing!"}
-            </h2>
-
-            <p>
-              You answered {score} out of {questions.length} questions correctly.
-            </p>
-
-            <div className="result-actions">
-              <button onClick={restartQuiz} className="primary-button">
-                <RotateCcw size={17} />
-                Try Again
-              </button>
-
-              <Link to="/topics" className="secondary-button">
-                Back to Topics
-              </Link>
-
-              <Link to="/dashboard" className="secondary-button">
-                Dashboard
-              </Link>
-            </div>
+      <div className="quiz-container">
+        <div className="quiz-result">
+          <div className="result-icon">
+            <Trophy size={48} />
           </div>
 
-          <section className="answer-review">
-            <h2>Review Your Answers</h2>
-            <p className="review-description">
-              Check your answers and learn from your mistakes.
+          <h1>Quiz Completed!</h1>
+
+          <p className="result-score">
+            You scored {score} out of {questions.length}
+          </p>
+
+          <p className="result-percentage">
+            {percentage}% Score
+          </p>
+
+          {saving && (
+            <p role="status">
+              Saving your result to the database...
             </p>
+          )}
+
+          {saved && (
+            <p role="status">
+              Quiz result saved successfully!
+            </p>
+          )}
+
+          {saveError && (
+            <div role="alert">
+              <p>{saveError}</p>
+
+              <button
+                type="button"
+                className="primary-button"
+                onClick={saveAttempt}
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Retry Saving Result"}
+              </button>
+            </div>
+          )}
+
+          <div className="quiz-review">
+            <h2>Answer Review</h2>
 
             {questions.map((item, index) => {
-              const isCorrect = selectedAnswers[index] === item.answer;
+              const isCorrect =
+                selectedAnswers[index] === item.answer;
 
               return (
-                <article
+                <div
+                  className="review-item"
                   key={index}
-                  className={`review-item ${
-                    isCorrect ? "correct" : "incorrect"
-                  }`}
                 >
-                  <div className="review-question-heading">
-                    <h3>
-                      {index + 1}. {item.question}
-                    </h3>
-
+                  <div className="review-question">
                     {isCorrect ? (
-                      <CheckCircle size={21} />
+                      <CheckCircle size={20} />
                     ) : (
-                      <XCircle size={21} />
+                      <XCircle size={20} />
                     )}
+
+                    <strong>
+                      {index + 1}. {item.question}
+                    </strong>
                   </div>
 
                   <p>
-                    <strong>Your answer:</strong>{" "}
+                    Your answer:{" "}
                     {item.options[selectedAnswers[index]]}
                   </p>
 
                   {!isCorrect && (
                     <p>
-                      <strong>Correct answer:</strong>{" "}
+                      Correct answer:{" "}
                       {item.options[item.answer]}
                     </p>
                   )}
-
-                  <span className="review-status">
-                    {isCorrect ? "Correct" : "Incorrect"}
-                  </span>
-                </article>
+                </div>
               );
             })}
-          </section>
+          </div>
+
+          <div className="quiz-actions">
+            <button
+              type="button"
+              className="primary-button"
+              onClick={restartQuiz}
+            >
+              <RotateCcw size={18} />
+              Try Again
+            </button>
+
+            <Link
+              to="/dashboard"
+              className="secondary-button"
+            >
+              Back to Dashboard
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="quiz-page">
-      <div className="quiz-container">
-        <Link to="/topics" className="back-link">
-          <ArrowLeft size={17} />
-          Back to Topics
+    <div className="quiz-container">
+      <div className="quiz-header">
+        <Link
+          to="/dashboard"
+          className="back-link"
+        >
+          <ArrowLeft size={18} />
+          Back to Dashboard
         </Link>
 
-        <header className="quiz-heading">
-          <p className="quiz-label">TEST YOUR KNOWLEDGE</p>
-          <h1>AngularJS Quiz</h1>
-          <p>Answer all the questions and check your score.</p>
-        </header>
+        <h1>AngularJS Quiz</h1>
 
+        <p>
+          Test your knowledge of AngularJS concepts.
+        </p>
+      </div>
+
+      <div className="quiz-card">
         <div className="quiz-progress">
           <div className="progress-info">
             <span>
-              Question {currentQuestion + 1} of {questions.length}
+              Question {currentQuestion + 1} of{" "}
+              {questions.length}
             </span>
 
             <span>
-              {Math.round(
-                ((currentQuestion + 1) / questions.length) * 100
-              )}
-              %
+              {answeredCount}/{questions.length} answered
             </span>
           </div>
 
@@ -256,107 +339,86 @@ function Quiz() {
               className="progress-fill"
               style={{
                 width: `${
-                  ((currentQuestion + 1) / questions.length) * 100
+                  ((currentQuestion + 1) /
+                    questions.length) *
+                  100
                 }%`,
               }}
             />
           </div>
         </div>
 
-        <section className="question-card">
-          <div className="question-number">
-            QUESTION {String(currentQuestion + 1).padStart(2, "0")}
-          </div>
+        <h2 className="question-title">
+          {question.question}
+        </h2>
 
-          <h2>{question.question}</h2>
-
-          <div className="answer-options">
-            {question.options.map((option, index) => {
-              const isSelected = selectedAnswers[currentQuestion] === index;
-
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  aria-pressed={isSelected}
-                  className={`answer-option ${
-                    isSelected ? "selected" : ""
-                  }`}
-                  onClick={() => selectAnswer(index)}
-                >
-                  <span className="option-letter">
-                    {String.fromCharCode(65 + index)}
-                  </span>
-
-                  <span>{option}</span>
-
-                  {isSelected && (
-                    <CheckCircle className="option-check" size={19} />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="quiz-navigation">
+        <div className="options-list">
+          {question.options.map((option, index) => (
             <button
               type="button"
-              className="secondary-button"
-              disabled={currentQuestion === 0}
-              onClick={previousQuestion}
+              key={index}
+              className={`quiz-option ${
+                selectedAnswers[currentQuestion] === index
+                  ? "selected"
+                  : ""
+              }`}
+              onClick={() => selectAnswer(index)}
             >
-              <ArrowLeft size={17} />
-              Previous
+              <span className="option-letter">
+                {String.fromCharCode(65 + index)}
+              </span>
+
+              <span>{option}</span>
+
+              {selectedAnswers[currentQuestion] ===
+                index && (
+                <CheckCircle size={18} />
+              )}
             </button>
+          ))}
+        </div>
 
-            {currentQuestion < questions.length - 1 ? (
-              <button
-                type="button"
-                className="primary-button"
-                onClick={nextQuestion}
-              >
-                Next
-                <ArrowRight size={17} />
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="primary-button"
-                disabled={answeredCount !== questions.length}
-                onClick={submitQuiz}
-              >
-                Submit Quiz
-                <CheckCircle size={17} />
-              </button>
-            )}
-          </div>
-
-          {currentQuestion === questions.length - 1 &&
-            answeredCount !== questions.length && (
-              <p className="quiz-warning">
-                Please answer all questions before submitting.
-              </p>
-            )}
-        </section>
-
-        <div className="quiz-footer-info">
-          <p>
-            Answered: <strong>{answeredCount}</strong> / {questions.length}
-          </p>
-
+        <div className="question-navigation">
           <button
             type="button"
-            className="reset-button"
-            onClick={restartQuiz}
+            className="secondary-button"
+            onClick={previousQuestion}
+            disabled={currentQuestion === 0}
           >
-            <RotateCcw size={15} />
-            Reset Quiz
+            <ArrowLeft size={18} />
+            Previous
           </button>
+
+          {currentQuestion < questions.length - 1 ? (
+            <button
+              type="button"
+              className="primary-button"
+              onClick={nextQuestion}
+            >
+              Next
+              <ArrowRight size={18} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="primary-button"
+              onClick={submitQuiz}
+              disabled={answeredCount !== questions.length}
+            >
+              Submit Quiz
+            </button>
+          )}
         </div>
+
+        {answeredCount !== questions.length && (
+          <p className="quiz-hint">
+            Please answer all {questions.length} questions
+            before submitting.
+          </p>
+        )}
       </div>
     </div>
   );
 }
 
 export default Quiz;
-

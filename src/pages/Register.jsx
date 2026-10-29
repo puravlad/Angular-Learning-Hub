@@ -36,8 +36,10 @@ function Register() {
     }));
   }
 
-  function handleSubmit(event) {
+
+  async function handleSubmit(event) {
     event.preventDefault();
+    setError("");
 
     if (
       !formData.fullName.trim() ||
@@ -54,13 +56,32 @@ function Register() {
       return;
     }
 
-    setError("");
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/auth/register",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        }
+      );
 
-    // Temporary frontend demonstration.
-    // Student registration will be saved in the backend later.
-    alert("Registration form completed! Backend integration is pending.");
+      const data = await response.json();
 
-    navigate("/login");
+      if (!response.ok) {
+        setError(data.message || "Registration failed.");
+        return;
+      }
+
+      alert("Registration successful! Please log in.");
+      navigate("/login");
+    } catch (error) {
+      setError(
+        "Cannot connect to the server. Please ensure the backend is running."
+      );
+    }
   }
 
   return (
@@ -123,7 +144,7 @@ function Register() {
         </div>
 
         <p className="register-left-footer">
-          © 2026 AngularJS Learning Hub
+          ©️ 2026 AngularJS Learning Hub
         </p>
       </section>
 

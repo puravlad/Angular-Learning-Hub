@@ -22,23 +22,51 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  function handleSubmit(event) {
-    event.preventDefault();
 
-    if (!email.trim() || !password.trim()) {
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setError("");
+
+    if (!email.trim() || !password) {
       setError("Please enter your email and password.");
       return;
     }
 
-    setError("");
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            password,
+            role,
+          }),
+        }
+      );
 
-    // Temporary frontend demonstration.
-    // Real authentication will be connected to the backend later.
+      const data = await response.json();
 
-    if (role === "admin") {
-      navigate("/admin");
-    } else {
-      navigate("/dashboard");
+      if (!response.ok) {
+        setError(data.message || "Login failed.");
+        return;
+      }
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      if (data.user.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
+    } catch (error) {
+      setError(
+        "Cannot connect to the server. Please ensure the backend is running."
+      );
     }
   }
 
@@ -99,7 +127,7 @@ function Login() {
         </div>
 
         <p className="login-footer">
-          © 2026 AngularJS Learning Hub
+          ©️ 2026 AngularJS Learning Hub
         </p>
       </section>
 
