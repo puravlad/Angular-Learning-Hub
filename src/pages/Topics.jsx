@@ -1,4 +1,5 @@
 
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   BookOpen,
@@ -9,65 +10,65 @@ import {
   ClipboardList,
   ArrowRight,
 } from "lucide-react";
+
+import { fetchTopics } from "../utils/topicApi";
 import "../styles/topics.css";
 
+const topicIcons = {
+  Expressions: Code,
+  Directives: Layers,
+  Controllers: Settings,
+  Modules: BookOpen,
+  Filters: Filter,
+  Forms: ClipboardList,
+};
+
+const topicLevels = {
+  Expressions: "Beginner",
+  Directives: "Beginner",
+  Controllers: "Intermediate",
+  Modules: "Beginner",
+  Filters: "Intermediate",
+  Forms: "Intermediate",
+};
+
+const lessonCounts = {
+  Expressions: 4,
+  Directives: 6,
+  Controllers: 4,
+  Modules: 3,
+  Filters: 4,
+  Forms: 5,
+};
+
 function Topics() {
-  const topics = [
-    {
-      id: 1,
-      title: "Expressions",
-      description:
-        "Learn how to display values and perform calculations in AngularJS.",
-      icon: Code,
-      level: "Beginner",
-      lessons: 4,
-    },
-    {
-      id: 2,
-      title: "Directives",
-      description:
-        "Understand ng-model, ng-repeat, ng-if and other important directives.",
-      icon: Layers,
-      level: "Beginner",
-      lessons: 6,
-    },
-    {
-      id: 3,
-      title: "Controllers",
-      description:
-        "Learn how controllers manage application data and behavior.",
-      icon: Settings,
-      level: "Intermediate",
-      lessons: 4,
-    },
-    {
-      id: 4,
-      title: "Modules",
-      description:
-        "Understand how to create and organize an AngularJS application.",
-      icon: BookOpen,
-      level: "Beginner",
-      lessons: 3,
-    },
-    {
-      id: 5,
-      title: "Filters",
-      description:
-        "Learn to format text, numbers, dates and filter displayed data.",
-      icon: Filter,
-      level: "Intermediate",
-      lessons: 4,
-    },
-    {
-      id: 6,
-      title: "Forms",
-      description:
-        "Practice form handling, ng-model and basic form validation.",
-      icon: ClipboardList,
-      level: "Intermediate",
-      lessons: 5,
-    },
-  ];
+  const [topics, setTopics] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadTopics() {
+      try {
+        const data = await fetchTopics();
+        setTopics(data);
+        setError("");
+      } catch (err) {
+        setError(
+          "Unable to load topics. Please check that the backend server is running."
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadTopics();
+  }, []);
+
+  const totalLessons = topics.reduce(
+    (total, topic) =>
+      total + (lessonCounts[topic.title] || 0),
+    0
+  );
 
   return (
     <div className="topics-page">
@@ -89,7 +90,7 @@ function Topics() {
         <div className="summary-card">
           <BookOpen size={25} />
           <div>
-            <h3>{topics.length}</h3>
+            <h3>{loading ? "..." : topics.length}</h3>
             <p>Learning Topics</p>
           </div>
         </div>
@@ -97,50 +98,76 @@ function Topics() {
         <div className="summary-card">
           <Code size={25} />
           <div>
-            <h3>
-              {topics.reduce((total, topic) => total + topic.lessons, 0)}
-            </h3>
+            <h3>{loading ? "..." : totalLessons}</h3>
             <p>Planned Lessons</p>
           </div>
         </div>
       </div>
 
-      <div className="topics-grid">
-        {topics.map((topic) => {
-          const Icon = topic.icon;
+      {loading && (
+        <p>Loading topics from MongoDB...</p>
+      )}
 
-          return (
-            <div className="topic-card" key={topic.id}>
-              <div className="topic-card-top">
-                <div className="topic-icon">
-                  <Icon size={25} />
+      {error && (
+        <div role="alert">
+          <p>{error}</p>
+          <button onClick={() => window.location.reload()}>
+            Try Again
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && topics.length === 0 && (
+        <p>No topics found. Please add topics from the admin panel.</p>
+      )}
+
+      {!loading && !error && (
+        <div className="topics-grid">
+          {topics.map((topic) => {
+            const Icon = topicIcons[topic.title] || BookOpen;
+
+            return (
+              <div className="topic-card" key={topic._id}>
+                <div className="topic-card-top">
+                  <div className="topic-icon">
+                    <Icon size={25} />
+                  </div>
+
+                  <span className="topic-level">
+                    {topicLevels[topic.title] || "Beginner"}
+                  </span>
                 </div>
 
-                <span className="topic-level">{topic.level}</span>
+                <h2>{topic.title}</h2>
+
+                <p className="topic-description">
+                  {topic.description}
+                </p>
+
+                <div className="topic-card-footer">
+                  <span>
+                    {lessonCounts[topic.title] || 0} lessons
+                  </span>
+
+                  <Link
+                    to={`/topics/${topic._id}`}
+                    className="topic-link"
+                  >
+                    Explore <ArrowRight size={16} />
+                  </Link>
+                </div>
               </div>
-
-              <h2>{topic.title}</h2>
-
-              <p className="topic-description">{topic.description}</p>
-
-              <div className="topic-card-footer">
-                <span>{topic.lessons} lessons</span>
-
-               <Link
-                to={`/topics/${topic.id}`}
-                className="topic-link">
-                Explore <ArrowRight size={16} />
-</Link>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="topics-bottom">
         <div>
           <h2>Ready to test your knowledge?</h2>
-          <p>Complete a quiz and check your AngularJS understanding.</p>
+          <p>
+            Complete a quiz and check your AngularJS understanding.
+          </p>
         </div>
 
         <Link to="/quiz" className="quiz-button">
@@ -152,4 +179,3 @@ function Topics() {
 }
 
 export default Topics;
-
